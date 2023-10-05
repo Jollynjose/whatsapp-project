@@ -1,14 +1,16 @@
+import { controllers } from 'src/types/tControllers';
+import { routers } from 'src/types/tRouter';
+import client from './whatsapp';
+import Config from './config';
+
 import express, { Express } from 'express';
 import bodyParser from 'body-parser';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-
-import { controllers } from 'src/types/tControllers';
-import { routers } from 'src/types/tRouter';
+import { ConfigEnum } from './config/config.enum';
 
 type ServerParams = {
-  PORT: number;
   routers: routers;
   controllers: controllers;
 };
@@ -16,8 +18,8 @@ type ServerParams = {
 class Server {
   private PORT: number;
   private app: Express;
-  constructor({ PORT, routers }: ServerParams) {
-    this.PORT = PORT;
+  constructor({ routers }: ServerParams) {
+    this.PORT = Number(Config.get(ConfigEnum.PORT));
     this.app = express();
 
     this.middlewares();
@@ -38,10 +40,11 @@ class Server {
   }
 
   start() {
-    this.app.listen(this.PORT, () => {
+    this.app.listen(this.PORT, async () => {
       console.log(`Server is listen on port: ${this.PORT}`);
+      client.initialize();
     });
   }
 }
 
-export default new Server({ PORT: 3000, routers: {}, controllers: {} });
+export default new Server({ routers: {}, controllers: {} });
