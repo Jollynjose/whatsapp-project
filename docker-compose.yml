@@ -1,14 +1,25 @@
 version: '3.10'
 services:
-  server:
-    container_name: whatsapp-api
-    build:
-      dockerfile: Dockerfile
-      context: .
-    volumes:
-      - ./:usr/src
-      - /usr/src/app/node_modules
-    env_file:
-      - .env
+  # server:
+  #   container_name: whatsapp-api
+  #   build:
+  #     dockerfile: Dockerfile
+  #     context: .
+  #   volumes:
+  #     - ./:usr/src
+  #     - /usr/src/app/node_modules
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - '3000:3000'
+  db:
+    container_name: whatsapp-postgres
+    image: postgres:14.5
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DATABASE=whatsapp
+      - POSTGRES_DB=whatsapp
     ports:
-      - '3000:3000'
+      - '5432:5432'

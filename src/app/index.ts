@@ -1,3 +1,7 @@
 import Server from '../server/app';
 
-export default Server.start();
+function main() {
+  Server.start();
+}
+
+main();

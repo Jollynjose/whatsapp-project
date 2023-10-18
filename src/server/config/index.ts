@@ -1,11 +1,12 @@
 import { parse } from 'dotenv';
 import fs from 'fs';
 import { ConfigEnum } from './config.enum';
+import { join } from 'path';
 
 class Config {
   private readonly envConfig: { [key: string]: string };
   constructor() {
-    const path = __dirname + '/../../.env';
+    const path = join(__dirname + '../../../../.env');
     const existPath = fs.existsSync(path);
     if (!existPath) {
       console.log(`.env file does not exist on path ${path}`);
