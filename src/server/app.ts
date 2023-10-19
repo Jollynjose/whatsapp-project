@@ -34,8 +34,8 @@ class Server {
   }
 
   private setRoutes(routers: routers) {
-    this.app.get('/', (req, res) => {
-      res.send('Hello world');
+    this.app.get('/seeds', (req, res) => {
+      res.send('in this endpoint load seed');
     });
   }
 
