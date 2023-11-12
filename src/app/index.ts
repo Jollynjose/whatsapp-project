@@ -1,7 +1,9 @@
 import Server from '../server/app';
+import client from './modules/whatsapp';
 
 function main() {
-  Server.start();
+  // Server.start();
+  client.initialize();
 }
 
 main();

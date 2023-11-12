@@ -11,8 +11,10 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid()) @db.Uuid
   phoneNumber String @db.VarChar(100) @unique
+
+  fullName String @db.VarChar(100)
 
   reminders Reminder[] 
   createdAt DateTime @default(now())
@@ -20,7 +22,7 @@ model User {
 }
 
 model Reminder {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid()) @db.Uuid
   isActive Boolean @default(true)
   
   user User @relation(fields: [userPhoneNumber], references: [phoneNumber])
@@ -33,10 +35,10 @@ model Reminder {
 }
 
 model BotAnswer {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid()) @db.Uuid
 
   option BotOption @relation(fields: [optionId], references: [id])
-  optionId Int @unique
+  optionId String @unique @db.Uuid
 
   text String @db.Text()
 }
@@ -46,15 +48,19 @@ enum OptionCaseEnum {
   SECOND
   THIRD
   FOURTH
+  FIFTH
 }
 
 model BotOption {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid()) @db.Uuid
 
   text String @db.Text()
   case OptionCaseEnum
 
   botAnswer BotAnswer?
+
+  botMenu BotMenu @relation(fields: [botMenuId], references: [id])
+  botMenuId String @db.Uuid
 }
 
 enum BotChatGPTPersonality {
@@ -63,18 +69,32 @@ enum BotChatGPTPersonality {
 }
 
 model BotChatGPT {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid()) @db.Uuid
 
   prompt BotChatGPTPrompt[]
 
   personality BotChatGPTPersonality
 }
 
+enum BotMenuType {
+  MAIN
+  SUB
+  REMINDER
+}
+
+model BotMenu {
+  id String @id @default(uuid()) @db.Uuid
+
+  type BotMenuType
+
+  options BotOption[]
+}
+
 model BotChatGPTPrompt {
-  id Int @id @default(autoincrement())
+  id String @id @default(uuid()) @db.Uuid
 
   text String @db.Text
 
   botChatGPT BotChatGPT @relation(fields: [botChatGPTId], references: [id])
-  botChatGPTId Int
+  botChatGPTId String  @db.Uuid
 }

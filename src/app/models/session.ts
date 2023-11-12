@@ -1,4 +1,5 @@
 import { Chat } from 'whatsapp-web.js';
+import userRepository from './domain/user.repository';
 
 export class Session {
   private chat: Chat;
@@ -11,14 +12,6 @@ export class Session {
     this.id = chat.id.user;
     this.contactName = contactName;
     this.lastTimeActive = chat.lastMessage.timestamp;
-
-    this.greeting();
-  }
-
-  greeting() {
-    this.chat.sendMessage(
-      `Welcome to Jollyn's Bot, how do you feel ${this.contactName}?`,
-    );
   }
 
   getChat() {
@@ -43,14 +36,14 @@ export class Session {
 
     // 60 seconds
     if (diff >= 60) {
-      this.chat.sendMessage(`Good Bye ${this.contactName}`);
+      this.chat.sendMessage(`${this.contactName}, hasta la Proxima!`);
       return true;
     }
     return false;
   }
 }
 
-class SessionObserver {
+export class SessionObserver {
   private sessions: Array<Session>;
   constructor() {
     this.sessions = Array<Session>();
@@ -77,11 +70,14 @@ class SessionObserver {
     return this.sessions.some((session) => session.getId() === id);
   }
 
-  updateLastActivityTime(id: string, lastTimeActive: number) {
-    const session = this.getSessionById(id);
-    if (session) {
-      session.updateLastActivityTime(lastTimeActive);
-    }
+  updateLastActivityTime({
+    lastTimeActive,
+    session,
+  }: {
+    lastTimeActive: number;
+    session: Session;
+  }) {
+    session.updateLastActivityTime(lastTimeActive);
   }
 
   private checkSession() {
@@ -94,5 +90,3 @@ class SessionObserver {
     }, 30000);
   }
 }
-
-export const sessionObserver = new SessionObserver();

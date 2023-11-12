@@ -1,6 +1,5 @@
 import { controllers } from 'src/types/tControllers';
 import { routers } from 'src/types/tRouter';
-import client from './whatsapp';
 import Config from './config';
 
 import express, { Express } from 'express';
@@ -33,16 +32,11 @@ class Server {
     this.app.use(cors());
   }
 
-  private setRoutes(routers: routers) {
-    this.app.get('/seeds', (req, res) => {
-      res.send('in this endpoint load seed');
-    });
-  }
+  private setRoutes(routers: routers) {}
 
   start() {
     this.app.listen(this.PORT, async () => {
       console.log(`Server is listen on port: ${this.PORT}`);
-      client.initialize();
     });
   }
 }

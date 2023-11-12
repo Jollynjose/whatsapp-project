@@ -1,6 +1,6 @@
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import qrCode from 'qrcode-terminal';
-import { Session, sessionObserver } from '../../app/models/session';
+import bot from '../models/bot';
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'client-one' }),
@@ -24,17 +24,7 @@ client.on('loading_screen', (percent, message) => {
 
 client.on('message', async (mess) => {
   try {
-    const chat = await mess.getChat();
-    if (chat.isGroup) return;
-
-    if (!sessionObserver.isSessionExist(chat.id.user)) {
-      const contact = await mess.getContact();
-      const name = contact.name ?? contact.pushname;
-      sessionObserver.addSession(new Session({ chat, contactName: name }));
-      return;
-    }
-
-    sessionObserver.updateLastActivityTime(chat.id.user, mess.timestamp);
+    await bot.checkSession(mess);
   } catch (error) {
     console.log(error);
   }
