@@ -1,17 +1,35 @@
 import { Chat } from 'whatsapp-web.js';
-import userRepository from './domain/user.repository';
+import { Message } from './message';
 
 export class Session {
   private chat: Chat;
   private contactName: string;
   private id: string;
   private lastTimeActive: number;
+  private message: Array<Message>;
 
   constructor({ chat, contactName }: { chat: Chat; contactName: string }) {
     this.chat = chat;
     this.id = chat.id.user;
     this.contactName = contactName;
     this.lastTimeActive = chat.lastMessage.timestamp;
+    this.message = Array<Message>();
+  }
+
+  addMessage(Message: Message) {
+    this.message.push(Message);
+  }
+
+  getMessage(id: string) {
+    return this.message.find((Message) => Message.getId() === id);
+  }
+
+  getLastMessage() {
+    return this.message[this.message.length - 1];
+  }
+
+  getFirstMessage() {
+    return this.message[0];
   }
 
   getChat() {
