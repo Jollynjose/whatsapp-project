@@ -1,6 +1,9 @@
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import qrCode from 'qrcode-terminal';
 import bot from '../models/bot';
+import { whatsappCronJob } from './cron';
+import dayjs from 'dayjs';
+import { DATE_FORMAT } from '../../helpers/regex';
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'client-one' }),
@@ -12,6 +15,7 @@ client.on('qr', (qr) => {
 
 client.on('ready', () => {
   console.log('Client is ready!');
+  whatsappCronJob(client);
 });
 
 client.on('authenticated', () => {

@@ -1,4 +1,4 @@
-import Server from '../server/app';
+import { reminderRepository } from './models/domain';
 import client from './modules/whatsapp';
 
 function main() {

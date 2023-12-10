@@ -21,7 +21,7 @@ export class Session {
   }
 
   getMessage(id: string) {
-    return this.message.find((Message) => Message.getId() === id);
+    return this.message.find((Message) => Message.getMenuType() === id);
   }
 
   getLastMessage() {

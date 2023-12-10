@@ -1,10 +1,16 @@
 import { Chat, Message as MessageWs } from 'whatsapp-web.js';
 import { Session, SessionObserver } from './session';
-import { userRepository, botMenuRepository } from './domain';
+import {
+  userRepository,
+  botMenuRepository,
+  reminderRepository,
+} from './domain';
 import { $Enums } from '@prisma/client';
 import { Message } from './message';
 import { MenuWithOptionsAndAnswer } from 'src/types/tMenu';
 import client from '../modules/whatsapp';
+import dayjs from 'dayjs';
+import { DATE_FORMAT } from '../../helpers/regex';
 
 const OPTIONS = {
   '1': 'FIRST',
@@ -76,7 +82,7 @@ class Bot {
 
       const session = this.sessionObserver.getSessionById(chat.id.user);
       if (session) {
-        session.addMessage(new Message('MAIN', message));
+        session.addMessage(new Message(message, '', 'MAIN'));
       }
     } catch (error) {
       throw new Error(error as string);
@@ -131,6 +137,8 @@ class Bot {
     }
   }
 
+  private reminderResponses() {}
+
   private async sendMessage(chat: Chat, mess: MessageWs) {
     try {
       const session = this.sessionObserver.getSessionById(chat.id.user);
@@ -138,16 +146,81 @@ class Bot {
 
       const message = session.getLastMessage();
 
-      const menu = this.menus.find((menu) => menu.type === message.getId());
+      const menu = this.menus.find(
+        (menu) => menu.type === message.getMenuType(),
+      );
+
       if (menu) {
         const option = menu.options.find(
           (option) =>
             option.case.toString() ===
             OPTIONS[mess.body as keyof typeof OPTIONS],
         );
-        if (option) {
-          if (menu.type === 'REMINDER') {
-          } else if (menu.type === 'MAIN') {
+        if (menu.type === 'REMINDER') {
+          const lastMessage = session.getLastMessage();
+          if (lastMessage) {
+            const isFirstOption = menu.options.some(
+              (option) =>
+                option.text === lastMessage.getMessage().body &&
+                option.case === $Enums.OptionCaseEnum.FIRST,
+            );
+            const isSecondOption = menu.options.some(
+              (option) =>
+                option.text === lastMessage.getMessage().body &&
+                option.case === $Enums.OptionCaseEnum.SECOND,
+            );
+            if (isFirstOption) {
+              const secondOption = menu.options.find(
+                (option) => option.case === $Enums.OptionCaseEnum.SECOND,
+              );
+              if (secondOption) {
+                const message = await chat.sendMessage(secondOption.text);
+                session.addMessage(new Message(message, mess.body, menu.type));
+              }
+            }
+            if (isSecondOption) {
+              const isCorrectFormat = DATE_FORMAT.test(mess.body);
+              const isDateValid = dayjs(
+                mess.body,
+                'MM-DD-YYYY',
+                true,
+              ).isValid();
+              console.log(isCorrectFormat, isDateValid, mess.body);
+              if (isCorrectFormat && isDateValid) {
+                const message = await chat.sendMessage(
+                  'Fecha correcta guardado',
+                );
+                const reminder = await reminderRepository.save({
+                  data: {
+                    date: dayjs(mess.body).toDate(),
+                    userPhoneNumber: chat.id.user,
+                    isActive: true,
+                    body: lastMessage.getBody(),
+                  },
+                });
+                console.log(reminder);
+                const menu = this.menus.find((menu) => menu.type === 'MAIN');
+                if (menu) {
+                  const response = this.createMenuMessage(menu);
+                  await chat.sendMessage(
+                    `Selecciona del 1 al ${menu.options.length}\n${response}`,
+                  );
+                }
+                session.addMessage(new Message(message, mess.body, 'MAIN'));
+              } else {
+                await chat.sendMessage('Fecha incorrecta');
+                session.addMessage(
+                  new Message(
+                    lastMessage.getMessage(),
+                    lastMessage.getBody(),
+                    menu.type,
+                  ),
+                );
+              }
+            }
+          }
+        } else if (option) {
+          if (menu.type === 'MAIN') {
             const answer = option.botAnswer;
             const isReminder = mess.body === '4';
 
@@ -155,81 +228,65 @@ class Bot {
               const reminderMenu = this.menus.find(
                 (_menu) => _menu.type === 'REMINDER',
               );
-
               if (reminderMenu) {
-                const response = this.createMenuMessage(reminderMenu);
                 const message = await chat.sendMessage(
-                  `Selecciona del 1 al ${reminderMenu.options.length}\n${response}`,
+                  reminderMenu.options.find(
+                    (option) => option.case === $Enums.OptionCaseEnum.FIRST,
+                  )?.text ?? '',
                 );
-                session.addMessage(new Message('REMINDER', message));
+                session.addMessage(
+                  new Message(message, mess.body, reminderMenu.type),
+                );
               }
             } else {
               const response = this.createMenuMessage(menu);
-              await chat.sendMessage(answer?.text ?? '');
+              const message = await chat.sendMessage(answer?.text ?? '');
               if (mess.body !== '3') {
                 await chat.sendMessage(
                   `Selecciona del 1 al ${menu.options.length}\n${response}`,
                 );
               }
 
-              session.addMessage(new Message('MAIN', mess));
+              session.addMessage(new Message(message, mess.body, menu.type));
             }
           }
         } else {
-          const lastMenu = session.getLastMessage();
+          const lastMessage = session.getLastMessage();
+
           if (
-            lastMenu &&
-            lastMenu.getId() === 'MAIN' &&
-            lastMenu.getMessage().body === '3'
+            lastMessage &&
+            lastMessage.getMenuType() === 'MAIN' &&
+            lastMessage.getBody() === '3'
           ) {
-            const phoneNumber = await client.getNumberId('8098465117');
+            const phoneNumber = await client.getNumberId('8293360821');
+            let message: MessageWs;
             if (phoneNumber) {
-              await client.sendMessage(phoneNumber._serialized, mess.body);
-              await chat.sendMessage('Mensaje enviado');
+              message = await client.sendMessage(
+                phoneNumber._serialized,
+                mess.body,
+              );
             } else {
-              await chat.sendMessage('Numero no registrado');
+              message = await chat.sendMessage('Numero no registrado');
             }
+
             const response = this.createMenuMessage(menu);
             await chat.sendMessage(
               `Selecciona del 1 al ${menu.options.length}\n${response}`,
             );
+
+            await chat.sendMessage('Mensaje enviado');
+            session.addMessage(new Message(message, mess.body, menu.type));
           } else {
             const response = this.createMenuMessage(menu);
-            await chat.sendMessage('Por favor, seleccione un opcion correcta');
+            const message = await chat.sendMessage(
+              'Por favor, seleccione un opcion correcta',
+            );
             await chat.sendMessage(
               `Selecciona del 1 al ${menu.options.length}\n${response}`,
             );
+            session.addMessage(new Message(message, mess.body, menu.type));
           }
-          session.addMessage(new Message('MAIN', mess));
         }
-        // if (option) {
-        //   const answer = option.botAnswer;
-        //   const isReminder = mess.body === '4';
-        //   if (answer && !isReminder) {
-        //     await chat.sendMessage(answer.text);
-        //   }
-
-        //   if (menu.type === 'MAIN' && !isReminder) {
-        //     const response = this.createMenuMessage(menu);
-
-        //     const message = await chat.sendMessage(
-        //       `Selecciona del 1 al ${menu.options.length}\n${response}`,
-        //     );
-
-        //     session.addMessage(new Message(menu.type, message));
-        //   } else {
-        //     const reminderMenu = this.menus.find(
-        //       (_menu) => _menu.type === 'REMINDER',
-        //     );
-        //     if (reminderMenu) {
-        //       const response = this.createMenuMessage(reminderMenu);
-        //       const message = await chat.sendMessage(
-        //         `Selecciona del 1 al ${reminderMenu.options.length}\n${response}`,
-        //       );
-        //       session.addMessage(new Message('REMINDER', message));
-        //     }
-        //   }
-        // }
       }
 
       this.sessionObserver.updateLastActivityTime({
@@ -237,7 +294,7 @@ class Bot {
         session,
       });
     } catch (error) {
-      throw new Error(error as string);
+      console.log(error);
     }
   }
 }
