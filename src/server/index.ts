@@ -1,5 +1,3 @@
-import { controllers } from 'src/types/tControllers';
-import { routers } from 'src/types/tRouter';
 import Config from './config';
 
 import express, { Express } from 'express';
@@ -8,21 +6,17 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { ConfigEnum } from './config/config.enum';
-
-type ServerParams = {
-  routers: routers;
-  controllers: controllers;
-};
+import { authRouter } from './routers';
 
 class Server {
   private PORT: number;
   private app: Express;
-  constructor({ routers }: ServerParams) {
+  constructor() {
     this.PORT = Number(Config.get(ConfigEnum.PORT));
     this.app = express();
 
     this.middlewares();
-    this.setRoutes(routers);
+    this.setRoutes();
   }
 
   private middlewares() {
@@ -32,7 +26,9 @@ class Server {
     this.app.use(cors());
   }
 
-  private setRoutes(routers: routers) {}
+  private setRoutes() {
+    this.app.use('/api', authRouter.default);
+  }
 
   start() {
     this.app.listen(this.PORT, async () => {
@@ -41,4 +37,4 @@ class Server {
   }
 }
 
-export default new Server({ routers: {}, controllers: {} });
+export default new Server();

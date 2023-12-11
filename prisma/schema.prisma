@@ -10,11 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Contact {
   id String @id @default(uuid()) @db.Uuid
   phoneNumber String @db.VarChar(100) @unique
 
   fullName String @db.VarChar(100)
+  user User?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+
+  password String @db.VarChar()
+  contact Contact @relation(fields: [contactPhoneNumber], references: [phoneNumber])
+  contactPhoneNumber String @unique @db.VarChar()
 
   reminders Reminder[] 
   createdAt DateTime @default(now())
@@ -25,7 +37,7 @@ model Reminder {
   id String @id @default(uuid()) @db.Uuid
   isActive Boolean @default(true)
   
-  user User @relation(fields: [userPhoneNumber], references: [phoneNumber])
+  user User @relation(fields: [userPhoneNumber], references: [contactPhoneNumber])
   userPhoneNumber String
 
   body String @db.Text()
