@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, $Enums } from '@prisma/client';
 import prisma from '../../../../prisma';
 
 class UserRepository {
@@ -11,7 +11,10 @@ class UserRepository {
   async findByPhoneNumber(phoneNumber: string) {
     try {
       const user = await this.repository.user.findUnique({
-        where: { phoneNumber },
+        where: { contactPhoneNumber: phoneNumber },
+        include: {
+          contact: true,
+        },
       });
       return user;
     } catch (error) {
@@ -21,6 +24,7 @@ class UserRepository {
 
   async save(options: Prisma.UserCreateArgs) {
     try {
+      options.data;
       return await this.repository.user.create(options);
     } catch (error) {
       throw new Error(error as string);

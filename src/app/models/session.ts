@@ -1,5 +1,8 @@
 import { Chat } from 'whatsapp-web.js';
 import { Message } from './message';
+import MenuHelper from './menu';
+import { MenuWithOptionsAndAnswer } from 'src/types/tMenu';
+import { $Enums } from '@prisma/client';
 
 export class Session {
   private chat: Chat;
@@ -7,13 +10,28 @@ export class Session {
   private id: string;
   private lastTimeActive: number;
   private message: Array<Message>;
+  private menuHelper: MenuHelper;
 
-  constructor({ chat, contactName }: { chat: Chat; contactName: string }) {
+  constructor({
+    chat,
+    contactName,
+    isAdmin = false,
+    menus,
+  }: {
+    chat: Chat;
+    contactName: string;
+    isAdmin: boolean;
+    menus: MenuWithOptionsAndAnswer[];
+  }) {
     this.chat = chat;
     this.id = chat.id.user;
     this.contactName = contactName;
     this.lastTimeActive = chat.lastMessage.timestamp;
     this.message = Array<Message>();
+    this.menuHelper = new MenuHelper(
+      isAdmin ? $Enums.BotMenuType.ADMIN : $Enums.BotMenuType.MAIN,
+      menus,
+    );
   }
 
   addMessage(Message: Message) {
@@ -46,6 +64,10 @@ export class Session {
 
   updateLastActivityTime(lastTimeActive: number) {
     this.lastTimeActive = lastTimeActive;
+  }
+
+  getMenuHelper() {
+    return this.menuHelper;
   }
 
   async checkLastActivityTime() {

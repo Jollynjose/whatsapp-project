@@ -21,12 +21,17 @@ model Contact {
   updatedAt DateTime @updatedAt
 }
 
+enum UserRole {
+  ADMIN
+}
+
 model User {
   id String @id @default(uuid()) @db.Uuid
 
   password String @db.VarChar()
   contact Contact @relation(fields: [contactPhoneNumber], references: [phoneNumber])
   contactPhoneNumber String @unique @db.VarChar()
+  role UserRole
 
   reminders Reminder[] 
   createdAt DateTime @default(now())
@@ -55,25 +60,33 @@ model BotAnswer {
   text String @db.Text()
 }
 
-enum OptionCaseEnum {
-  FIRST
-  SECOND
-  THIRD
-  FOURTH
-  FIFTH
-}
-
 model BotOption {
   id String @id @default(uuid()) @db.Uuid
 
   text String @db.Text()
-  case OptionCaseEnum
+  order Int
 
   botAnswer BotAnswer?
 
   botMenu BotMenu @relation(fields: [botMenuId], references: [id])
   botMenuId String @db.Uuid
 }
+
+
+enum BotMenuType {
+  MAIN
+  REMINDER
+  ADMIN
+}
+
+model BotMenu {
+  id String @id @default(uuid()) @db.Uuid
+
+  type BotMenuType
+
+  options BotOption[]
+}
+
 
 enum BotChatGPTPersonality {
   SALESPERSON
@@ -88,19 +101,6 @@ model BotChatGPT {
   personality BotChatGPTPersonality
 }
 
-enum BotMenuType {
-  MAIN
-  SUB
-  REMINDER
-}
-
-model BotMenu {
-  id String @id @default(uuid()) @db.Uuid
-
-  type BotMenuType
-
-  options BotOption[]
-}
 
 model BotChatGPTPrompt {
   id String @id @default(uuid()) @db.Uuid
