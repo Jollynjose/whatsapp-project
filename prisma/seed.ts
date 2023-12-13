@@ -62,20 +62,20 @@ async function main() {
               order: 1,
             },
             {
-              text: 'Inserte la fecha en que se recordara la fecha, con el siguiente formato: 2021-10-10(YYYY-MM-DD)',
+              text: 'Inserte la fecha en que se recordara la fecha, con el siguiente formato: 10-29-2023(MES-DIA-AñO)',
               order: 2,
               botAnswer: {
                 create: {
-                  text: 'Formato invalido, por favor ingrese la fecha con el siguiente formato: 2021-10-10(YYYY-MM-DD)',
+                  text: 'Formato invalido, por favor ingrese la fecha con el siguiente formato:  10-29-2023(MES-DIA-AñO)',
                 },
               },
             },
             {
-              text: 'Inserte la hora en que se recordara la fecha, solo se acepta que la hora sea en punto, con el siguiente formato: 10:00(HH:MM) AM/PM(por defecto es AM)',
+              text: 'Inserte la hora en que se recordara la fecha, solo se acepta que la hora sea en punto, con el siguiente formato: 10(HORA) AM/PM\nEjemplo: 10 AM',
               order: 3,
               botAnswer: {
                 create: {
-                  text: 'Formato invalido, por favor ingrese la hora con el siguiente formato: 10:00(HH:MM) AM/PM(por defecto es AM)',
+                  text: 'Formato invalido, por favor ingrese la hora con el siguiente formato:  10(HORA) AM/PM\nEjemplo: 10 AM',
                 },
               },
             },

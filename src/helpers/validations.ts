@@ -4,7 +4,10 @@ import { DATE_FORMAT } from './regex';
 import { isLeapYearDate } from './date';
 
 export const dateValidator = date()
-  .min(dayjs().toDate(), 'La fecha no puede ser menor a la fecha actual')
+  .min(
+    dayjs().subtract(1, 'day').toDate(),
+    'La fecha no puede ser menor a la fecha actual',
+  )
   .superRefine((value, ctx) => {
     if (!dayjs(value).isValid())
       return ctx.addIssue({
@@ -65,18 +68,17 @@ export const dateFormatValidator = string()
   });
 
 export const hourValidator = string().superRefine((value, ctx) => {
-  // 11:00 PM
+  // 11 PM
+  const splitHour = value.split(' ');
 
-  const splitPeriods = value.split(' ');
-  const splitTime = splitPeriods[0].split(':');
-
-  if (splitPeriods.length !== 2 && splitTime.length !== 2)
+  if (splitHour.length !== 2)
     return ctx.addIssue({
       code: 'invalid_date',
       message: 'Formato de hora invalida',
     });
 
-  const period = splitPeriods[1].toLowerCase();
+  const period = splitHour[1].toLowerCase();
+  const hour = parseInt(splitHour[0]);
 
   if (period !== 'am' && period !== 'pm')
     return ctx.addIssue({
@@ -84,18 +86,33 @@ export const hourValidator = string().superRefine((value, ctx) => {
       message: 'Formato de hora invalida',
     });
 
-  const hour = parseInt(splitTime[0]);
-  const minute = parseInt(splitTime[1]);
-
-  if (isNaN(hour) || isNaN(minute))
+  if (isNaN(hour))
     return ctx.addIssue({
       code: 'invalid_date',
       message: 'Formato de hora invalida',
     });
 
-  if (hour <= 0 || hour > 12 || minute !== 0)
+  if (hour <= 0 || hour > 12)
     return ctx.addIssue({
       code: 'invalid_date',
       message: 'Formato de hora invalida',
     });
+
+  const actualHour = dayjs().get('hour');
+
+  let compareHour = 0;
+
+  if (period === 'pm') {
+    compareHour = hour + 12;
+    if (hour > 23) {
+      compareHour = compareHour - 24;
+    }
+  }
+
+  if (compareHour < actualHour) {
+    return ctx.addIssue({
+      code: 'invalid_date',
+      message: 'La hora no puede ser menor a la hora actual',
+    });
+  }
 });

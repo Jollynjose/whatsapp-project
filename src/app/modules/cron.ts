@@ -12,7 +12,7 @@ import { ConfigEnum } from '../../server/config/config.enum';
 // EVERY DAY AT 7:30 AM CRON JOB(30 7 * * *)
 
 const cronJob = CronJob.from({
-  cronTime: '30 7 * * *',
+  cronTime: '0 * * * *',
   onTick: () => {},
   start: false,
   timeZone: 'system',

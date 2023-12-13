@@ -18,14 +18,31 @@ import {
   dateValidator,
   hourValidator,
 } from '../../helpers/validations';
+import config from '../../server/config';
+import { ConfigEnum } from '../../server/config/config.enum';
+import { TUser } from '../../types/tUser';
 
 class Bot {
   private sessionObserver: SessionObserver;
   private menus: MenuWithOptionsAndAnswer[];
+  private adminUser: TUser | undefined;
   constructor() {
     this.sessionObserver = new SessionObserver();
     this.menus = [];
     this.loadMenus().catch((error) => console.log(error));
+    this.loadAdminUser().catch((error) => console.log(error));
+  }
+
+  private async loadAdminUser() {
+    try {
+      const phoneNumber = config.get(ConfigEnum.PHONE_NUMBER);
+      const user = await userRepository.findByPhoneNumber(phoneNumber);
+      if (user) {
+        this.adminUser = user;
+      }
+    } catch (error) {
+      throw new Error(error as string);
+    }
   }
 
   private async loadMenus() {
@@ -39,7 +56,9 @@ class Bot {
 
   private createMenuMessage(menu: MenuWithOptionsAndAnswer) {
     let response = '';
-    menu.options.forEach((option) => {
+    menu.options.forEach((option, index) => {
+      if (menu.type === 'ADMIN' && index > 1) return;
+
       response += `${option.order} - ${option.text}\n`;
     });
 
@@ -62,7 +81,7 @@ class Bot {
     try {
       const customMessage = `Hola, ${
         isAdmin ? 'Admin' : 'hablas con el asistente de Jollyn'
-      }\nEn que te puedo ayudar?\n}`;
+      }\nEn que te puedo ayudar?`;
       await chat.sendMessage(customMessage);
 
       const session = this.sessionObserver.getSessionById(chat.id.user);
@@ -71,7 +90,7 @@ class Bot {
         const { response, menuLength } = await this.loadMenu(menu);
 
         const message = await chat.sendMessage(
-          `Selecciona del 1 al ${menuLength}\n${response}`,
+          `Selecciona del 1 al ${isAdmin ? 2 : menuLength + 1}\n${response}`,
         );
 
         session.addMessage(
@@ -135,149 +154,6 @@ class Bot {
     }
   }
 
-  // const menu = this.menus.find(
-  //   (menu) => menu.type === message.getMenuType(),
-  // );
-
-  // if (menu) {
-  //   const option = menu.options.find(
-  //     (option) =>
-  //       option.case.toString() ===
-  //       OPTIONS[mess.body as keyof typeof OPTIONS],
-  //   );
-  //   if (menu.type === 'REMINDER') {
-  //     const lastMessage = session.getLastMessage();
-  //     if (lastMessage) {
-  //       const isFirstOption = menu.options.some(
-  //         (option) =>
-  //           option.text === lastMessage.getMessage().body &&
-  //           option.case === $Enums.OptionCaseEnum.FIRST,
-  //       );
-  //       const isSecondOption = menu.options.some(
-  //         (option) =>
-  //           option.text === lastMessage.getMessage().body &&
-  //           option.case === $Enums.OptionCaseEnum.SECOND,
-  //       );
-  //       if (isFirstOption) {
-  //         const secondOption = menu.options.find(
-  //           (option) => option.case === $Enums.OptionCaseEnum.SECOND,
-  //         );
-  //         if (secondOption) {
-  //           const message = await chat.sendMessage(secondOption.text);
-  //           session.addMessage(new Message(message, mess.body, menu.type));
-  //         }
-  //       }
-  //       if (isSecondOption) {
-  //         const isCorrectFormat = DATE_FORMAT.test(mess.body);
-  //         const isDateValid = dayjs(
-  //           mess.body,
-  //           'MM-DD-YYYY',
-  //           true,
-  //         ).isValid();
-  //         console.log(isCorrectFormat, isDateValid, mess.body);
-  //         if (isCorrectFormat && isDateValid) {
-  //           const message = await chat.sendMessage(
-  //             'Fecha correcta guardado',
-  //           );
-  //           const reminder = await reminderRepository.save({
-  //             data: {
-  //               date: dayjs(mess.body).toDate(),
-  //               userPhoneNumber: chat.id.user,
-  //               isActive: true,
-  //               body: lastMessage.getBody(),
-  //             },
-  //           });
-  //           console.log(reminder);
-  //           const menu = this.menus.find((menu) => menu.type === 'MAIN');
-  //           if (menu) {
-  //             const response = this.createMenuMessage(menu);
-  //             await chat.sendMessage(
-  //               `Selecciona del 1 al ${menu.options.length}\n${response}`,
-  //             );
-  //           }
-  //           session.addMessage(new Message(message, mess.body, 'MAIN'));
-  //         } else {
-  //           await chat.sendMessage('Fecha incorrecta');
-  //           session.addMessage(
-  //             new Message(
-  //               lastMessage.getMessage(),
-  //               lastMessage.getBody(),
-  //               menu.type,
-  //             ),
-  //           );
-  //         }
-  //       }
-  //     }
-  //   } else if (option) {
-  //     if (menu.type === 'MAIN') {
-  //       const answer = option.botAnswer;
-  //       const isReminder = mess.body === '4';
-
-  //       if (isReminder) {
-  //         const reminderMenu = this.menus.find(
-  //           (_menu) => _menu.type === 'REMINDER',
-  //         );
-  //         if (reminderMenu) {
-  //           const message = await chat.sendMessage(
-  //             reminderMenu.options.find(
-  //               (option) => option.case === $Enums.OptionCaseEnum.FIRST,
-  //             )?.text ?? '',
-  //           );
-  //           session.addMessage(
-  //             new Message(message, mess.body, reminderMenu.type),
-  //           );
-  //         }
-  //       } else {
-  //         const response = this.createMenuMessage(menu);
-  //         const message = await chat.sendMessage(answer?.text ?? '');
-  //         if (mess.body !== '3') {
-  //           await chat.sendMessage(
-  //             `Selecciona del 1 al ${menu.options.length}\n${response}`,
-  //           );
-  //         }
-
-  //         session.addMessage(new Message(message, mess.body, menu.type));
-  //       }
-  //     }
-  //   } else {
-  //     const lastMessage = session.getLastMessage();
-
-  //     if (
-  //       lastMessage &&
-  //       lastMessage.getMenuType() === 'MAIN' &&
-  //       lastMessage.getBody() === '3'
-  //     ) {
-  //       const phoneNumber = await client.getNumberId('8293360821');
-  //       let message: MessageWs;
-  //       if (phoneNumber) {
-  //         message = await client.sendMessage(
-  //           phoneNumber._serialized,
-  //           mess.body,
-  //         );
-  //       } else {
-  //         message = await chat.sendMessage('Numero no registrado');
-  //       }
-
-  //       const response = this.createMenuMessage(menu);
-  //       await chat.sendMessage(
-  //         `Selecciona del 1 al ${menu.options.length}\n${response}`,
-  //       );
-
-  //       await chat.sendMessage('Mensaje enviado');
-  //       session.addMessage(new Message(message, mess.body, menu.type));
-  //     } else {
-  //       const response = this.createMenuMessage(menu);
-  //       const message = await chat.sendMessage(
-  //         'Por favor, seleccione un opcion correcta',
-  //       );
-  //       await chat.sendMessage(
-  //         `Selecciona del 1 al ${menu.options.length}\n${response}`,
-  //       );
-  //       session.addMessage(new Message(message, mess.body, menu.type));
-  //     }
-  //   }
-  // }
-
   private async updateMenus() {
     try {
       await this.loadMenus();
@@ -312,7 +188,10 @@ class Bot {
             break;
           case 2:
             const isFormatValid = dateFormatValidator.safeParse(mess.body);
-            const isDateValid = dateValidator.safeParse(mess.body);
+            const isDateValid = dateValidator.safeParse(
+              dayjs(mess.body).toDate(),
+            );
+
             if (isFormatValid.success && isDateValid.success) {
               const payload = session.getPayload();
               if (payload.reminder) {
@@ -341,33 +220,40 @@ class Bot {
 
             if (isHourValid.success) {
               const payload = session.getPayload();
-
               if (payload.reminder) {
-                const splitPeriods = mess.body.split(' ');
-                const splitTime = splitPeriods[0].split(':');
+                const splitTime = mess.body.split(' ');
+                const period = splitTime[1];
+                const hour = parseInt(splitTime[0]);
+
                 let time = 0;
-                if (splitPeriods[1].toLowerCase() === 'pm') {
-                  time = parseInt(splitTime[0]) + 12;
+                if (period.toLowerCase() === 'pm') {
+                  time = hour + 12;
+                  if (hour > 23) {
+                    time = time - 24;
+                  }
                 } else {
-                  time = parseInt(splitTime[0]);
+                  time = hour;
                 }
 
-                const date = payload.reminder.date.set('hour', time).toDate();
+                const date = payload.reminder.date.toDate();
+
+                date.setHours(0, 0, 0, 0);
+                date.setHours(time);
 
                 await reminderRepository.save({
                   data: {
-                    date,
-                    userPhoneNumber: chat.id.user,
+                    date: payload.reminder.date.toDate(),
+                    userPhoneNumber: this.adminUser?.contactPhoneNumber ?? '',
                     isActive: true,
                     body: payload.reminder.text,
                   },
                 });
-                const message = await chat.sendMessage('Recordatorio guardado');
+                await chat.sendMessage('Recordatorio guardado');
                 menuHelper.setCurrentMenu('MAIN');
 
                 const menu = menuHelper.getCurrentMenu();
                 const { response, menuLength } = await this.loadMenu(menu);
-                await chat.sendMessage(
+                const message = await chat.sendMessage(
                   `Selecciona del 1 al ${menuLength}\n${response}`,
                 );
                 session.addMessage(new Message(message, mess.body, 'REMINDER'));
@@ -395,8 +281,16 @@ class Bot {
 
       if (currentAction === 'OPTION') {
         const option = parseInt(mess.body);
-        if (isNaN(option) && menuHelper.isOptionExist(option, 'ADMIN')) {
-          await mess.reply('Opcion invalida');
+        if (isNaN(option)) {
+          await chat.sendMessage('Opcion invalida');
+
+          const menu = menuHelper.getCurrentMenu();
+          const { response, menuLength } = await this.loadMenu(menu);
+
+          const message = await chat.sendMessage(
+            `Selecciona del 1 al ${menuLength}\n${response}`,
+          );
+          session.addMessage(new Message(message, mess.body, 'ADMIN'));
           return;
         }
 
@@ -406,7 +300,7 @@ class Bot {
           const { response, menuLength } = await this.loadMenu(menu);
 
           const message = await chat.sendMessage(
-            `Selecciona del 1 al ${menuLength}\n${response}`,
+            `Selecciona del 1 al ${menuLength + 1}\n${response}`,
           );
           session.addMessage(new Message(message, mess.body, 'MAIN'));
 
@@ -490,8 +384,17 @@ class Bot {
       const currentAction = menuHelper.getAction();
       if (currentAction === 'OPTION') {
         const option = parseInt(mess.body);
-        if (isNaN(option) && menuHelper.isOptionExist(option, 'MAIN')) {
-          await mess.reply('Opcion invalida');
+        if (isNaN(option)) {
+          await chat.sendMessage('Opcion invalida');
+
+          const menu = menuHelper.getCurrentMenu();
+          const { response, menuLength } = await this.loadMenu(menu);
+
+          const message = await chat.sendMessage(
+            `Selecciona del 1 al ${menuLength + 1}\n${response}`,
+          );
+          session.addMessage(new Message(message, mess.body, 'MAIN'));
+
           return;
         }
 
@@ -515,15 +418,12 @@ class Bot {
           if (optionToSend && optionToSend.botAnswer) {
             const message = await chat.sendMessage(optionToSend.botAnswer.text);
             session.addMessage(new Message(message, mess.body, 'MAIN'));
-
             const { response, menuLength } = await this.loadMenu(currentMenu);
-
             await chat.sendMessage(
-              `Selecciona del 1 al ${menuLength}\n${response}`,
+              `Selecciona del 1 al ${menuLength + 1}\n${response}`,
             );
           }
         }
-      } else {
       }
     } catch (error) {
       throw new Error(error as string);
@@ -544,6 +444,10 @@ class Bot {
           const message = session.getLastMessage();
           if (message) {
             await chat.sendMessage(message.getMessage().body);
+            this.sessionObserver.updateLastActivityTime({
+              lastTimeActive: mess.timestamp,
+              session,
+            });
           }
         } else if (mess.body.toLowerCase() === 'no') {
           this.sessionObserver.removeSessionById(session.getId());
@@ -554,20 +458,20 @@ class Bot {
         return;
       }
 
-      if (menuHelper.type === $Enums.BotMenuType.ADMIN) {
-        await this.adminResponse({ chat, mess, menuHelper, session });
-      }
-      if (menuHelper.type === $Enums.BotMenuType.MAIN) {
-        await this.mainResponse({ chat, mess, menuHelper, session });
-      }
-      if (menuHelper.type === $Enums.BotMenuType.REMINDER) {
-        await this.reminderResponse({ chat, mess, menuHelper, session });
-      }
-
       this.sessionObserver.updateLastActivityTime({
         lastTimeActive: mess.timestamp,
         session,
       });
+
+      if (menuHelper.type === $Enums.BotMenuType.ADMIN) {
+        return await this.adminResponse({ chat, mess, menuHelper, session });
+      }
+      if (menuHelper.type === $Enums.BotMenuType.MAIN) {
+        return await this.mainResponse({ chat, mess, menuHelper, session });
+      }
+      if (menuHelper.type === $Enums.BotMenuType.REMINDER) {
+        return await this.reminderResponse({ chat, mess, menuHelper, session });
+      }
     } catch (error) {
       console.log(error);
     }

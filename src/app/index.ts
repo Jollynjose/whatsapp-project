@@ -5,11 +5,7 @@ import client from './modules/whatsapp';
 
 function main() {
   // Server.start();
-  // client.initialize();
-
-  const result = dateFormatValidator.safeParse('02-29-2024');
-
-  console.log(result.success);
+  client.initialize();
 }
 
 main();
