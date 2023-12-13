@@ -2,8 +2,19 @@ import { Chat } from 'whatsapp-web.js';
 import { Message } from './message';
 import MenuHelper from './menu';
 import { MenuWithOptionsAndAnswer } from 'src/types/tMenu';
-import { $Enums } from '@prisma/client';
+import { $Enums, Prisma } from '@prisma/client';
+import dayjs from 'dayjs';
 
+type Payload = {
+  reminder?: {
+    text: string;
+    date: dayjs.Dayjs;
+  };
+  option?: {
+    title: string;
+    description: string;
+  };
+};
 export class Session {
   private chat: Chat;
   private contactName: string;
@@ -11,6 +22,8 @@ export class Session {
   private lastTimeActive: number;
   private message: Array<Message>;
   private menuHelper: MenuHelper;
+  private payload: Payload = {};
+  private wishContinue: boolean = false;
 
   constructor({
     chat,
@@ -43,7 +56,7 @@ export class Session {
   }
 
   getLastMessage() {
-    return this.message[this.message.length - 1];
+    return this.message.slice(-1).length > 0 ? this.message.slice(-1)[0] : null;
   }
 
   getFirstMessage() {
@@ -58,6 +71,17 @@ export class Session {
     return this.id;
   }
 
+  setPayload(payload: Payload) {
+    this.payload = {
+      ...this.payload,
+      ...payload,
+    };
+  }
+
+  getPayload() {
+    return this.payload;
+  }
+
   sendMessage(message: string) {
     this.chat.sendMessage(message);
   }
@@ -70,12 +94,31 @@ export class Session {
     return this.menuHelper;
   }
 
+  updateMenu(menus: MenuWithOptionsAndAnswer[]) {
+    this.menuHelper.updateMenu(menus);
+  }
+
+  getWishContinue() {
+    return this.wishContinue;
+  }
+
+  setWishContinue(wishContinue: boolean) {
+    this.wishContinue = wishContinue;
+  }
+
   async checkLastActivityTime() {
     const now = Math.floor(new Date().getTime() / 1000);
     const diff = now - this.lastTimeActive;
 
-    // 60 seconds
+    if (diff >= 30 && diff < 60) {
+      this.chat.sendMessage(
+        `${this.contactName}, Desea Continuar?\n Escriba *Si* para continuar o *No* para finalizar`,
+      );
+      this.wishContinue = true;
+      return false;
+    }
     if (diff >= 60) {
+      // 60 seconds
       this.chat.sendMessage(`${this.contactName}, hasta la Proxima!`);
       return true;
     }
@@ -128,5 +171,11 @@ export class SessionObserver {
         }
       });
     }, 30000);
+  }
+
+  updateMenus(menus: MenuWithOptionsAndAnswer[]) {
+    this.sessions.forEach((session) => {
+      session.updateMenu(menus);
+    });
   }
 }

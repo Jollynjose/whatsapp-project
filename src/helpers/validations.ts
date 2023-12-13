@@ -63,3 +63,39 @@ export const dateFormatValidator = string()
       });
     }
   });
+
+export const hourValidator = string().superRefine((value, ctx) => {
+  // 11:00 PM
+
+  const splitPeriods = value.split(' ');
+  const splitTime = splitPeriods[0].split(':');
+
+  if (splitPeriods.length !== 2 && splitTime.length !== 2)
+    return ctx.addIssue({
+      code: 'invalid_date',
+      message: 'Formato de hora invalida',
+    });
+
+  const period = splitPeriods[1].toLowerCase();
+
+  if (period !== 'am' && period !== 'pm')
+    return ctx.addIssue({
+      code: 'invalid_date',
+      message: 'Formato de hora invalida',
+    });
+
+  const hour = parseInt(splitTime[0]);
+  const minute = parseInt(splitTime[1]);
+
+  if (isNaN(hour) || isNaN(minute))
+    return ctx.addIssue({
+      code: 'invalid_date',
+      message: 'Formato de hora invalida',
+    });
+
+  if (hour <= 0 || hour > 12 || minute !== 0)
+    return ctx.addIssue({
+      code: 'invalid_date',
+      message: 'Formato de hora invalida',
+    });
+});

@@ -35,17 +35,20 @@ async function main() {
         options: {
           create: [
             {
-              text: 'Te gustaria agregar una nueva opcion?',
+              text: 'Te gustaria pasar a la seccion de menus?',
               order: 1,
-              botAnswer: {
-                create: {
-                  text: 'Inserte la nueva opcion',
-                },
-              },
             },
             {
-              text: 'Te gustaria pasar a la seccion de menus?',
+              text: 'Te gustaria agregar una nueva opcion?',
               order: 2,
+            },
+            {
+              text: 'Inserte el Titulo de la nueva opcion',
+              order: 3,
+            },
+            {
+              text: 'Inserte el texto al mostrar de la nueva opcion',
+              order: 4,
             },
           ],
         },

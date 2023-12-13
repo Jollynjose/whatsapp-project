@@ -7,12 +7,17 @@ import {
 } from './domain';
 import { $Enums } from '@prisma/client';
 import { Message } from './message';
-import { MenuWithOptionsAndAnswer } from 'src/types/tMenu';
+import { MenuWithOptionsAndAnswer } from '../../types/tMenu';
 import client from '../modules/whatsapp';
 import dayjs from 'dayjs';
-import { DATE_FORMAT } from '../../helpers/regex';
 import { contactRepository } from './domain/contact.repository';
-import { IResponse } from 'src/types/IResponse';
+import { IResponse } from '../../types/IResponse';
+import { botOptionRepository } from './domain/botOption.repository';
+import {
+  dateFormatValidator,
+  dateValidator,
+  hourValidator,
+} from '../../helpers/validations';
 
 class Bot {
   private sessionObserver: SessionObserver;
@@ -37,6 +42,10 @@ class Bot {
     menu.options.forEach((option) => {
       response += `${option.order} - ${option.text}\n`;
     });
+
+    if (menu.type === 'MAIN') {
+      response += `${menu.options.length + 1} - Quieres hacer un recordatorio?`;
+    }
 
     return response;
   }
@@ -269,11 +278,257 @@ class Bot {
   //   }
   // }
 
-  private async reminderResponse({}: IResponse) {}
+  private async updateMenus() {
+    try {
+      await this.loadMenus();
+      this.sessionObserver.updateMenus(this.menus);
+    } catch (error) {
+      throw new Error(error as string);
+    }
+  }
 
-  private async adminResponse({}: IResponse) {}
+  private async reminderResponse({
+    mess,
+    menuHelper,
+    session,
+    chat,
+  }: IResponse) {
+    try {
+      const option = menuHelper.getOption();
 
-  private async mainResponse({}: IResponse) {}
+      if (option) {
+        switch (option.order) {
+          case 1:
+            session.setPayload({
+              reminder: {
+                text: mess.body,
+                date: dayjs(),
+              },
+            });
+            const optionToSend = menuHelper.getOptionByOrder(2);
+            const message = await chat.sendMessage(optionToSend?.text ?? '');
+
+            session.addMessage(new Message(message, mess.body, 'ADMIN'));
+            break;
+          case 2:
+            const isFormatValid = dateFormatValidator.safeParse(mess.body);
+            const isDateValid = dateValidator.safeParse(mess.body);
+            if (isFormatValid.success && isDateValid.success) {
+              const payload = session.getPayload();
+              if (payload.reminder) {
+                session.setPayload({
+                  reminder: {
+                    ...payload.reminder,
+                    date: dayjs(mess.body),
+                  },
+                });
+                const optionToSend = menuHelper.getOptionByOrder(3);
+                await chat.sendMessage('Fecha correcta');
+                const message = await chat.sendMessage(
+                  optionToSend?.text ?? '',
+                );
+                session.addMessage(new Message(message, mess.body, 'REMINDER'));
+              }
+            } else {
+              const message = await chat.sendMessage(
+                option.botAnswer?.text ?? 'Fecha invalida',
+              );
+              session.addMessage(new Message(message, mess.body, 'REMINDER'));
+            }
+            break;
+          case 3:
+            const isHourValid = hourValidator.safeParse(mess.body);
+
+            if (isHourValid.success) {
+              const payload = session.getPayload();
+
+              if (payload.reminder) {
+                const splitPeriods = mess.body.split(' ');
+                const splitTime = splitPeriods[0].split(':');
+                let time = 0;
+                if (splitPeriods[1].toLowerCase() === 'pm') {
+                  time = parseInt(splitTime[0]) + 12;
+                } else {
+                  time = parseInt(splitTime[0]);
+                }
+
+                const date = payload.reminder.date.set('hour', time).toDate();
+
+                await reminderRepository.save({
+                  data: {
+                    date,
+                    userPhoneNumber: chat.id.user,
+                    isActive: true,
+                    body: payload.reminder.text,
+                  },
+                });
+                const message = await chat.sendMessage('Recordatorio guardado');
+                menuHelper.setCurrentMenu('MAIN');
+
+                const menu = menuHelper.getCurrentMenu();
+                const { response, menuLength } = await this.loadMenu(menu);
+                await chat.sendMessage(
+                  `Selecciona del 1 al ${menuLength}\n${response}`,
+                );
+                session.addMessage(new Message(message, mess.body, 'REMINDER'));
+              }
+            } else {
+              const message = await chat.sendMessage(
+                option.botAnswer?.text ?? 'Hora invalida',
+              );
+              session.addMessage(new Message(message, mess.body, 'REMINDER'));
+            }
+
+            break;
+          default:
+            chat.sendMessage('Opcion invalida');
+        }
+      }
+    } catch (error) {
+      throw new Error(error as string);
+    }
+  }
+
+  private async adminResponse({ mess, menuHelper, session, chat }: IResponse) {
+    try {
+      const currentAction = menuHelper.getAction();
+
+      if (currentAction === 'OPTION') {
+        const option = parseInt(mess.body);
+        if (isNaN(option) && menuHelper.isOptionExist(option, 'ADMIN')) {
+          await mess.reply('Opcion invalida');
+          return;
+        }
+
+        if (option === 1) {
+          menuHelper.setCurrentMenu('MAIN');
+          const menu = menuHelper.getCurrentMenu();
+          const { response, menuLength } = await this.loadMenu(menu);
+
+          const message = await chat.sendMessage(
+            `Selecciona del 1 al ${menuLength}\n${response}`,
+          );
+          session.addMessage(new Message(message, mess.body, 'MAIN'));
+
+          return;
+        }
+
+        if (option === 2) {
+          const optionToSend = menuHelper.getOptionByOrder(3);
+          if (optionToSend) {
+            menuHelper.setAction('ANSWER');
+            const message = await chat.sendMessage(optionToSend.text);
+            session.addMessage(new Message(message, mess.body, 'ADMIN'));
+          }
+        }
+      } else {
+        const option = menuHelper.getOption();
+        if (option) {
+          const text = mess.body;
+          if (option.order === 3) {
+            const optionToSend = menuHelper.getOptionByOrder(4);
+            if (optionToSend) {
+              const message = await chat.sendMessage(optionToSend.text);
+              session.setPayload({
+                option: {
+                  title: text,
+                  description: '',
+                },
+              });
+              session.addMessage(new Message(message, mess.body, 'ADMIN'));
+            }
+          } else {
+            const payload = session.getPayload();
+            if (payload.option) {
+              menuHelper.setOrderOption(0);
+              menuHelper.setAction('OPTION');
+
+              const title = payload.option.title;
+              const description = mess.body;
+              const menuToUpdate = this.menus.find(
+                (_menu) => _menu.type === 'MAIN',
+              );
+              if (menuToUpdate) {
+                await botOptionRepository.createOptionWithOrder(
+                  {
+                    data: {
+                      order: 0,
+                      text: title,
+                      botAnswer: {
+                        create: {
+                          text: description,
+                        },
+                      },
+                      botMenuId: menuToUpdate.id,
+                    },
+                  },
+                  menuToUpdate,
+                );
+
+                await chat.sendMessage('Opcion agregada exitosamente');
+
+                const menu = menuHelper.getCurrentMenu();
+                const { response, menuLength } = await this.loadMenu(menu);
+
+                const message = await chat.sendMessage(
+                  `Selecciona del 1 al ${menuLength}\n${response}`,
+                );
+                session.addMessage(new Message(message, mess.body, 'ADMIN'));
+                await this.updateMenus();
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      throw new Error(error as string);
+    }
+  }
+
+  private async mainResponse({ menuHelper, mess, session, chat }: IResponse) {
+    try {
+      const currentAction = menuHelper.getAction();
+      if (currentAction === 'OPTION') {
+        const option = parseInt(mess.body);
+        if (isNaN(option) && menuHelper.isOptionExist(option, 'MAIN')) {
+          await mess.reply('Opcion invalida');
+          return;
+        }
+
+        const currentMenu = menuHelper.getCurrentMenu();
+
+        if (
+          currentMenu.options.length === 0 ||
+          option === currentMenu.options.length + 1
+        ) {
+          // Go to Reminder
+          menuHelper.setCurrentMenu('REMINDER');
+          menuHelper.setAction('ANSWER');
+
+          const optionToSend = menuHelper.getOptionByOrder(1);
+          if (optionToSend) {
+            const message = await chat.sendMessage(optionToSend.text);
+            session.addMessage(new Message(message, mess.body, 'REMINDER'));
+          }
+        } else {
+          const optionToSend = menuHelper.getOptionByOrder(option);
+          if (optionToSend && optionToSend.botAnswer) {
+            const message = await chat.sendMessage(optionToSend.botAnswer.text);
+            session.addMessage(new Message(message, mess.body, 'MAIN'));
+
+            const { response, menuLength } = await this.loadMenu(currentMenu);
+
+            await chat.sendMessage(
+              `Selecciona del 1 al ${menuLength}\n${response}`,
+            );
+          }
+        }
+      } else {
+      }
+    } catch (error) {
+      throw new Error(error as string);
+    }
+  }
 
   private async sendMessage(chat: Chat, mess: MessageWs) {
     try {
@@ -281,6 +536,23 @@ class Bot {
       if (!session) return;
 
       const menuHelper = session.getMenuHelper();
+
+      // Interfaz si quiere seguir usando la app
+      if (session.getWishContinue()) {
+        if (mess.body.toLowerCase() === 'si') {
+          session.setWishContinue(false);
+          const message = session.getLastMessage();
+          if (message) {
+            await chat.sendMessage(message.getMessage().body);
+          }
+        } else if (mess.body.toLowerCase() === 'no') {
+          this.sessionObserver.removeSessionById(session.getId());
+          await chat.sendMessage('Gracias por usar el asistente de Jollyn');
+        } else {
+          await chat.sendMessage('Por favor, responda si o no');
+        }
+        return;
+      }
 
       if (menuHelper.type === $Enums.BotMenuType.ADMIN) {
         await this.adminResponse({ chat, mess, menuHelper, session });
