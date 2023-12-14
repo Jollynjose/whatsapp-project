@@ -22,8 +22,8 @@ export const whatsappCronJob = (client: Client) => {
   cronJob.start();
   cronJob.addCallback(async () => {
     try {
-      const date = new Date();
-      date.setHours(0, 0, 0, 0);
+      const date = dayjs().toDate();
+      date.setMinutes(0, 0, 0);
       const phoneNumber = await client.getNumberId(
         config.get(ConfigEnum.PHONE_NUMBER),
       );

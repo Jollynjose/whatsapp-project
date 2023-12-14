@@ -109,7 +109,7 @@ export const hourValidator = string().superRefine((value, ctx) => {
     }
   }
 
-  if (compareHour < actualHour) {
+  if (compareHour <= actualHour) {
     return ctx.addIssue({
       code: 'invalid_date',
       message: 'La hora no puede ser menor a la hora actual',

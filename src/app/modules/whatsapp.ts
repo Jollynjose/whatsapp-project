@@ -4,6 +4,7 @@ import bot from '../models/bot';
 import { whatsappCronJob } from './cron';
 import dayjs from 'dayjs';
 import { DATE_FORMAT } from '../../helpers/regex';
+import { checkOldReminder } from '../../helpers/checkOldReminder';
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'client-one' }),
@@ -16,6 +17,7 @@ client.on('qr', (qr) => {
 client.on('ready', () => {
   console.log('Client is ready!');
   whatsappCronJob(client);
+  checkOldReminder(client).catch((err) => console.log(err));
 });
 
 client.on('authenticated', () => {

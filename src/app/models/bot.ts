@@ -242,8 +242,8 @@ class Bot {
 
                 await reminderRepository.save({
                   data: {
-                    date: payload.reminder.date.toDate(),
-                    userPhoneNumber: this.adminUser?.contactPhoneNumber ?? '',
+                    date,
+                    userPhoneNumber: chat.id.user,
                     isActive: true,
                     body: payload.reminder.text,
                   },
@@ -254,7 +254,7 @@ class Bot {
                 const menu = menuHelper.getCurrentMenu();
                 const { response, menuLength } = await this.loadMenu(menu);
                 const message = await chat.sendMessage(
-                  `Selecciona del 1 al ${menuLength}\n${response}`,
+                  `Selecciona del 1 al ${menuLength + 1}\n${response}`,
                 );
                 session.addMessage(new Message(message, mess.body, 'REMINDER'));
               }
@@ -362,10 +362,10 @@ class Bot {
                 await chat.sendMessage('Opcion agregada exitosamente');
 
                 const menu = menuHelper.getCurrentMenu();
-                const { response, menuLength } = await this.loadMenu(menu);
+                const { response } = await this.loadMenu(menu);
 
                 const message = await chat.sendMessage(
-                  `Selecciona del 1 al ${menuLength}\n${response}`,
+                  `Selecciona del 1 al ${2}\n${response}`,
                 );
                 session.addMessage(new Message(message, mess.body, 'ADMIN'));
                 await this.updateMenus();
